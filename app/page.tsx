@@ -1,15 +1,15 @@
 "use client";
-import { useState, useMemo, useEffect } from "react"; // Added useEffect and useMemo
+import { useState, useMemo, useEffect } from "react"; 
 import dynamic from "next/dynamic";
-import { useBusData } from "../useBusData"; 
+import { useBusData } from "./useBusData"; // Path fixed to single dot ./
 
-// Dynamic Map Import (remains unchanged)
-const MapWithNoSSR = dynamic(() => import("../Map"), { 
+// Dynamic Map Import: Path fixed to single dot ./
+const MapWithNoSSR = dynamic(() => import("./Map"), { 
   ssr: false,
   loading: () => <p className="p-4">Loading Map...</p>
 });
 
-export default function TrackerPage() {
+export default function Home() {
   const buses = useBusData();
   const [selectedId, setSelectedId] = useState(null);
   
@@ -17,7 +17,7 @@ export default function TrackerPage() {
   const [sortBy, setSortBy] = useState('busNumber');
   const [sortDirection, setSortDirection] = useState('asc');
   
-  // NEW STATE: Search Query
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- 1. SORTING LOGIC ---
@@ -54,7 +54,8 @@ export default function TrackerPage() {
     return sorted;
   }, [buses, sortBy, sortDirection]);
 
-  // --- 2. FILTERING LOGIC (Applied to the sorted list) ---
+
+  // --- 2. FILTERING LOGIC ---
   const filteredBuses = useMemo(() => {
     if (!searchQuery) return sortedBuses;
     const query = searchQuery.toLowerCase();
@@ -64,18 +65,16 @@ export default function TrackerPage() {
         const busNumber = (v.vehicle.label || v.vehicle.id).toLowerCase();
         const routeName = (item.humanRouteName || '').toLowerCase();
 
-        // Search by Bus Number or Route Name
         return busNumber.includes(query) || routeName.includes(query);
     });
   }, [sortedBuses, searchQuery]);
 
+
   // --- 3. AUTOMATIC HIGHLIGHTING/CENTERING LOGIC ---
   useEffect(() => {
-      // If the search filters down to exactly one result, automatically select it and fly to it.
       if (filteredBuses.length === 1) {
           setSelectedId(filteredBuses[0].vehicle.vehicle.id);
       } else if (filteredBuses.length === 0 && selectedId) {
-          // Clear selection if the search query now yields nothing
           setSelectedId(null); 
       }
   }, [filteredBuses, setSelectedId]);
@@ -89,7 +88,7 @@ export default function TrackerPage() {
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
             <h1 className="text-2xl font-bold">MARTA Tracker ({filteredBuses.length})</h1>
             
-            {/* NEW SEARCH INPUT */}
+            {/* SEARCH INPUT */}
             <input 
                 type="text"
                 placeholder="Search Bus # or Route Name..."
@@ -136,7 +135,7 @@ export default function TrackerPage() {
         )}
 
         <div className="grid gap-3">
-          {/* Use the new filteredBuses array */}
+          {/* Use the final filteredBuses array */}
           {filteredBuses.map((item: any) => {
             const v = item.vehicle;
             const busNumber = v.vehicle.label || v.vehicle.id;

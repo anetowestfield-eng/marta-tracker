@@ -1,20 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 
-const STORAGE_KEY = "marta_bus_cache_v1"; // The key for our browser database
+const STORAGE_KEY = "marta_bus_cache_v1";
 
 export function useBusData() {
   const [buses, setBuses] = useState([]);
   const [routeNames, setRouteNames] = useState({});
   const latestBusesRef = useRef(new Map());
-  const [isLoaded, setIsLoaded] = useState(false); // New: Wait until storage is loaded
+  const [isLoaded, setIsLoaded] = useState(false); 
 
-  // 1. Load Saved Data from Local Storage (On Startup)
+  // 1. Load Saved Data from Local Storage (Persistence)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Restore the "Brain" (Map) with the saved buses
+        // Rebuild the Map from saved array
         parsed.forEach(bus => {
            latestBusesRef.current.set(bus.vehicle.vehicle.id, bus);
         });
@@ -27,7 +27,7 @@ export function useBusData() {
     }
   }, []);
 
-  // 2. Fetch Route Names
+  // 2. Fetch Route Names (The Dictionary)
   useEffect(() => {
     const fetchRoutes = async () => {
       try {
@@ -56,10 +56,11 @@ export function useBusData() {
         const incomingBuses = data.entity || [];
         const now = Date.now();
         
-        // Merge new data into our Master List
+        // Merge new data into our Master List 
         incomingBuses.forEach(bus => {
           const id = bus.vehicle.vehicle.id;
           const routeId = bus.vehicle.trip?.routeId;
+          
           // Use the dictionary name, or the saved name, or the raw ID
           const savedBus = latestBusesRef.current.get(id);
           const humanRoute = routeNames[routeId] || savedBus?.humanRouteName || routeId; 
@@ -67,16 +68,17 @@ export function useBusData() {
           latestBusesRef.current.set(id, {
             ...bus,
             humanRouteName: humanRoute,
-            lastUpdated: now 
+            lastUpdated: now // Update the last seen timestamp
           });
         });
 
-        // Convert to array
+        // NOTE: The GHOST REMOVAL LOGIC IS DELIBERATELY OMITTED
+        // Buses will never disappear until the user clears local storage/cache.
+
         const newList = Array.from(latestBusesRef.current.values());
         setBuses(newList);
 
-        // >>> SAVE TO LOCAL STORAGE <<<
-        // This line ensures the data survives a refresh!
+        // Save new list to Local Storage
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
 
       } catch (error) {
@@ -90,7 +92,7 @@ export function useBusData() {
   }, [routeNames]);
 
   // --- SIMULATION MODE ---
-  // Only show the Test Bus if we have NO data at all (and storage is finished loading)
+  // Show the Test Bus if the app has loaded and found no data
   if (isLoaded && buses.length === 0) {
     return [{
       lastUpdated: Date.now(),
@@ -98,7 +100,7 @@ export function useBusData() {
         vehicle: { id: "TEST-BUS", label: "999" },
         position: { latitude: 33.7490, longitude: -84.3880 },
         trip: { routeId: "00000" },
-        humanRouteName: "TESTING MODE"
+        humanRouteName: "TESTING MODE - Waiting for Morning"
       }
     }];
   }
