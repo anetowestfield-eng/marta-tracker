@@ -10,8 +10,9 @@ const MapWithNoSSR = dynamic(() => import("./Map"), {
 });
 
 export default function Home() {
-  const buses = useBusData();
-  const [selectedId, setSelectedId] = useState<string | null>(null); 
+  // FINAL FIX: Explicitly type the result of the hook as an array of 'any' objects.
+  const buses: any[] = useBusData();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   
   // Sorting States
   const [sortBy, setSortBy] = useState('busNumber');
@@ -30,7 +31,8 @@ export default function Home() {
     
     const sorted = [...buses]; 
 
-    sorted.sort((a: any, b: any) => { 
+    // The 'any' type on the buses array should flow through here now
+    sorted.sort((a, b) => { 
         let aVal, bVal;
         
         if (sortBy === 'busNumber') {
@@ -60,7 +62,7 @@ export default function Home() {
     if (!searchQuery) return sortedBuses;
     const query = searchQuery.toLowerCase();
     
-    return sortedBuses.filter((item: any) => {
+    return sortedBuses.filter((item) => {
         const v = item.vehicle;
         const busNumber = (v.vehicle.label || v.vehicle.id).toLowerCase();
         const routeName = (item.humanRouteName || '').toLowerCase();
