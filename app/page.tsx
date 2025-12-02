@@ -11,7 +11,7 @@ const MapWithNoSSR = dynamic(() => import("./Map"), {
 
 export default function Home() {
   const buses = useBusData();
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null); // State type fixed
   
   // Sorting States
   const [sortBy, setSortBy] = useState('busNumber');
@@ -30,7 +30,7 @@ export default function Home() {
     
     const sorted = [...buses]; 
 
-    // FIX FOR TYPESCRIPT BUILD ERROR: Casting a and b to 'any' for custom property access
+    // FIX FOR TYPESCRIPT BUILD ERROR: Casting a and b to 'any'
     sorted.sort((a: any, b: any) => { 
         let aVal, bVal;
         
@@ -89,7 +89,7 @@ export default function Home() {
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
             <h1 className="text-2xl font-bold text-black">MARTA Tracker ({filteredBuses.length})</h1>
             
-            {/* SEARCH INPUT: text-black for visibility */}
+            {/* SEARCH INPUT */}
             <input 
                 type="text"
                 placeholder="Search Bus # or Route Name..."
@@ -132,42 +132,3 @@ export default function Home() {
             <p className="text-gray-500 italic">Waiting for bus data...</p>
         )}
         {filteredBuses.length === 0 && searchQuery && (
-            <p className="text-gray-500 italic">No buses match "{searchQuery}"</p>
-        )}
-
-        <div className="grid gap-3">
-          {/* Use the final filteredBuses array */}
-          {filteredBuses.map((item: any) => {
-            const v = item.vehicle;
-            const busNumber = v.vehicle.label || v.vehicle.id;
-            const id = v.vehicle.id;
-            
-            const isSelected = selectedId === id;
-
-            return (
-              <div 
-                key={id} 
-                onClick={() => setSelectedId(id)}
-                className={`p-3 rounded shadow cursor-pointer transition-all border-2 ${
-                  isSelected ? "bg-blue-100 border-blue-500 scale-[1.02]" : "bg-white border-transparent hover:bg-gray-50"
-                }`}
-              >
-                <div className="font-bold text-lg text-blue-600">
-                  Bus #{busNumber}
-                </div>
-                <div className="text-sm text-gray-800">
-                  Route: {item.humanRouteName || "N/A"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* RIGHT SIDE: The Map */}
-      <div className="w-full md:w-2/3 h-1/2 md:h-full relative z-0">
-        <MapWithNoSSR buses={buses} selectedId={selectedId} />
-      </div>
-    </main>
-  );
-}
