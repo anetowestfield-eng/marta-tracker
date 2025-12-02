@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react"; 
 import dynamic from "next/dynamic";
-import { useBusData } from "./useBusData"; // Path fixed to single dot ./
+import { useBusData } from "./useBusData"; 
 
 // Dynamic Map Import: Path fixed to single dot ./
 const MapWithNoSSR = dynamic(() => import("./Map"), { 
@@ -86,15 +86,15 @@ export default function Home() {
       <div className="w-full md:w-1/3 h-1/2 md:h-full overflow-y-auto p-4 bg-gray-100 border-r border-gray-300">
         
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
-            <h1 className="text-2xl font-bold">MARTA Tracker ({filteredBuses.length})</h1>
+            <h1 className="text-2xl font-bold text-black">MARTA Tracker ({filteredBuses.length})</h1>
             
-            {/* SEARCH INPUT */}
+            {/* SEARCH INPUT: text-black added here 👇 */}
             <input 
                 type="text"
                 placeholder="Search Bus # or Route Name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full mt-2 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                className="w-full mt-2 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 text-black"
             />
             
             {/* SORTING CONTROLS */}
