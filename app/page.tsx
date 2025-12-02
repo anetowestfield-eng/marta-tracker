@@ -11,7 +11,7 @@ const MapWithNoSSR = dynamic(() => import("./Map"), {
 
 export default function Home() {
   const buses = useBusData();
-  const [selectedId, setSelectedId] = useState(null); // Resetting to simple null state
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   
   // Sorting States
   const [sortBy, setSortBy] = useState('busNumber');
@@ -30,8 +30,8 @@ export default function Home() {
     
     const sorted = [...buses]; 
 
-    // We rely on JavaScript's dynamic sorting here (no explicit type casting)
-    sorted.sort((a, b) => { 
+    // FIX: We cast 'a' and 'b' to 'any' to stop TypeScript from crashing the build
+    sorted.sort((a: any, b: any) => { 
         let aVal, bVal;
         
         if (sortBy === 'busNumber') {
@@ -61,7 +61,7 @@ export default function Home() {
     if (!searchQuery) return sortedBuses;
     const query = searchQuery.toLowerCase();
     
-    return sortedBuses.filter((item) => {
+    return sortedBuses.filter((item: any) => {
         const v = item.vehicle;
         const busNumber = (v.vehicle.label || v.vehicle.id).toLowerCase();
         const routeName = (item.humanRouteName || '').toLowerCase();
@@ -74,7 +74,6 @@ export default function Home() {
   // --- 3. AUTOMATIC HIGHLIGHTING/CENTERING LOGIC ---
   useEffect(() => {
       if (filteredBuses.length === 1) {
-          // This will be the line we re-debug if the TS error comes back
           setSelectedId(filteredBuses[0].vehicle.vehicle.id);
       } else if (filteredBuses.length === 0 && selectedId) {
           setSelectedId(null); 
@@ -88,7 +87,6 @@ export default function Home() {
       <div className="w-full md:w-1/3 h-1/2 md:h-full overflow-y-auto p-4 bg-gray-100 border-r border-gray-300">
         
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
-            {/* Font color is explicitly black now */}
             <h1 className="text-2xl font-bold text-black">MARTA Tracker ({filteredBuses.length})</h1>
             
             {/* SEARCH INPUT */}
@@ -139,7 +137,7 @@ export default function Home() {
 
         <div className="grid gap-3">
           {/* Use the final filteredBuses array */}
-          {filteredBuses.map((item) => {
+          {filteredBuses.map((item: any) => {
             const v = item.vehicle;
             const busNumber = v.vehicle.label || v.vehicle.id;
             const id = v.vehicle.id;
