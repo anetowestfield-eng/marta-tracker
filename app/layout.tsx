@@ -1,37 +1,19 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"
+// app/layout.tsx
+import './globals.css'; // Assuming your global CSS is here
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// app/layout.tsx (near the top)
-
+// Global metadata for the site's default tab name
 export const metadata = {
-  // THIS is what controls the name in the browser tab for most pages
   title: 'MARTA Bus Tracker Live',
-  description: 'Real-Time Bus Tracking for the Atlanta MARTA System.',
+  description: 'Real-Time, Persistent Bus Tracking for Atlanta MARTA.',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      suppressHydrationWarning
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      {/* The suppressHydrationWarning is the fix for browser extension errors (like Grammarly)
+        It tells React to ignore minor differences on the body tag between the server and the client.
+      */}
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

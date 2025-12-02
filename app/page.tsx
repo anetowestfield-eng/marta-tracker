@@ -1,14 +1,15 @@
 "use client";
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { useBusData } from "./useBusData";
+import { useBusData } from "../useBusData"; // Note: Assumes useBusData is up one level
 
-const MapWithNoSSR = dynamic(() => import("./Map"), { 
+// IMPORTANT: We load the map dynamically to prevent server-side errors (SSR=false)
+const MapWithNoSSR = dynamic(() => import("../Map"), { 
   ssr: false,
   loading: () => <p className="p-4">Loading Map...</p>
 });
 
-export default function Home() {
+export default function TrackerPage() {
   const buses = useBusData();
   const [selectedId, setSelectedId] = useState(null);
 
@@ -25,7 +26,7 @@ export default function Home() {
         )}
 
         <div className="grid gap-3">
-          {/* THE FIX IS HERE: We added ": any" to tell TypeScript to relax */}
+          {/* FIX: (item: any) prevents the Vercel TypeScript error */}
           {buses.map((item: any) => {
             const v = item.vehicle;
             const busNumber = v.vehicle.label || v.vehicle.id;
