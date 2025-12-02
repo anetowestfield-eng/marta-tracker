@@ -132,3 +132,42 @@ export default function Home() {
             <p className="text-gray-500 italic">Waiting for bus data...</p>
         )}
         {filteredBuses.length === 0 && searchQuery && (
+            <p className="text-gray-500 italic">No buses match "{searchQuery}"</p>
+        )}
+
+        <div className="grid gap-3">
+          {/* Use the final filteredBuses array */}
+          {filteredBuses.map((item: any) => {
+            const v = item.vehicle;
+            const busNumber = v.vehicle.label || v.vehicle.id;
+            const id = v.vehicle.id;
+            
+            const isSelected = selectedId === id;
+
+            return (
+              <div 
+                key={id} 
+                onClick={() => setSelectedId(id)}
+                className={`p-3 rounded shadow cursor-pointer transition-all border-2 ${
+                  isSelected ? "bg-blue-100 border-blue-500 scale-[1.02]" : "bg-white border-transparent hover:bg-gray-50"
+                }`}
+              >
+                <div className="font-bold text-lg text-blue-600">
+                  Bus #{busNumber}
+                </div>
+                <div className="text-sm text-gray-800">
+                  Route: {item.humanRouteName || "N/A"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* RIGHT SIDE: The Map */}
+      <div className="w-full md:w-2/3 h-1/2 md:h-full relative z-0">
+        <MapWithNoSSR buses={buses} selectedId={selectedId} />
+      </div>
+    </main>
+  );
+}
