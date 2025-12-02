@@ -30,7 +30,8 @@ export default function Home() {
     
     const sorted = [...buses]; 
 
-    sorted.sort((a, b) => {
+    // FIX FOR TYPESCRIPT BUILD ERROR: Casting a and b to 'any' for custom property access
+    sorted.sort((a: any, b: any) => { 
         let aVal, bVal;
         
         if (sortBy === 'busNumber') {
@@ -60,7 +61,7 @@ export default function Home() {
     if (!searchQuery) return sortedBuses;
     const query = searchQuery.toLowerCase();
     
-    return sortedBuses.filter(item => {
+    return sortedBuses.filter((item: any) => {
         const v = item.vehicle;
         const busNumber = (v.vehicle.label || v.vehicle.id).toLowerCase();
         const routeName = (item.humanRouteName || '').toLowerCase();
@@ -88,7 +89,7 @@ export default function Home() {
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
             <h1 className="text-2xl font-bold text-black">MARTA Tracker ({filteredBuses.length})</h1>
             
-            {/* SEARCH INPUT: text-black added here 👇 */}
+            {/* SEARCH INPUT: text-black for visibility */}
             <input 
                 type="text"
                 placeholder="Search Bus # or Route Name..."
