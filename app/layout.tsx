@@ -1,16 +1,22 @@
-// app/layout.tsx
-import React from 'react'; // <--- ADD THIS IMPORT
+import React from 'react';
+import './globals.css'; // This ensures your Tailwind styles (colors, fonts) work
 
+// Global metadata for the site
 export const metadata = {
   title: 'MARTA Bus Tracker Live',
   description: 'Real-Time, Persistent Bus Tracking for Atlanta MARTA.',
 };
 
-// FIX: We define 'children' as a standard React Node type.
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// FIX: We explicitly tell TypeScript that 'children' is a React Node.
+// This prevents the "implicitly has an 'any' type" error.
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      {/* The hydration fix is here to stop errors from browser extensions */}
+      {/* suppressHydrationWarning fixes the Grammarly/Extension black bar error */}
       <body suppressHydrationWarning>
         {children}
       </body>
