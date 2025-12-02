@@ -11,7 +11,7 @@ const MapWithNoSSR = dynamic(() => import("./Map"), {
 
 export default function Home() {
   const buses = useBusData();
-  const [selectedId, setSelectedId] = useState<string | null>(null); // State type fixed
+  const [selectedId, setSelectedId] = useState<string | null>(null); 
   
   // Sorting States
   const [sortBy, setSortBy] = useState('busNumber');
@@ -30,7 +30,6 @@ export default function Home() {
     
     const sorted = [...buses]; 
 
-    // FIX FOR TYPESCRIPT BUILD ERROR: Casting a and b to 'any'
     sorted.sort((a: any, b: any) => { 
         let aVal, bVal;
         
