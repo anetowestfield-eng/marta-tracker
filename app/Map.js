@@ -4,22 +4,25 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-// --- 1. DEFINE THE ICONS ---
-
-// The Standard BLUE Icon (Active Buses)
+// --- ICONS ---
 const blueIcon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
 
-// The GREY Icon (Stale/Ghost Buses)
 const greyIcon = L.icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png",
-  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+const redIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -39,15 +42,14 @@ function MapController({ selectedBus }) {
   return null;
 }
 
-export default function Map({ buses, selectedId }) {
+// NOTICE: We added 'pinnedIds = []' to the inputs here
+export default function Map({ buses, selectedId, pinnedIds = [] }) {
   const position = [33.7490, -84.3880];
   const selectedBus = buses.find(b => b.vehicle.vehicle.id === selectedId);
   
-  // We need a re-render every minute to update the "grey" status live
-  // so we use a simple state to trigger updates
   const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 60000); // Check every minute
+    const timer = setInterval(() => setTick(t => t + 1), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -60,31 +62,33 @@ export default function Map({ buses, selectedId }) {
       <MapController selectedBus={selectedBus} />
       
       {buses.map((bus) => {
-        const busNumber = bus.vehicle.vehicle.label || bus.vehicle.vehicle.id;
-        const isSelected = bus.vehicle.vehicle.id === selectedId;
-        const timeString = new Date(bus.lastUpdated).toLocaleTimeString();
+        const id = bus.vehicle.vehicle.id;
+        const busNumber = bus.vehicle.vehicle.label || id;
+        const isSelected = id === selectedId;
+        const isPinned = pinnedIds.includes(id); 
         const lat = bus.vehicle.position.latitude;
         const lon = bus.vehicle.position.longitude;
         const miles = bus.distanceToGarage ? bus.distanceToGarage.toFixed(1) : "?";
 
-        // --- CHECK IF BUS IS STALE (Older than 1 Hour) ---
-        const ONE_HOUR = 60 * 60 * 1000; // 3,600,000 ms
+        const ONE_HOUR = 60 * 60 * 1000;
         const isStale = (Date.now() - bus.lastUpdated) > ONE_HOUR;
+        const timeString = new Date(bus.lastUpdated).toLocaleTimeString();
 
-        // Choose the correct icon
-        const currentIcon = isStale ? greyIcon : blueIcon;
+        let currentIcon = blueIcon;
+        if (isPinned) currentIcon = redIcon;
+        else if (isStale) currentIcon = greyIcon;
 
         return (
           <Marker 
-            key={bus.vehicle.vehicle.id} 
+            key={id} 
             position={[lat, lon]}
             icon={currentIcon}
-            // If selected, full opacity. If stale, slightly faded (0.6). If active, normal (0.8).
-            opacity={isSelected ? 1.0 : (isStale ? 0.6 : 0.8)} 
+            opacity={isSelected ? 1.0 : (isStale && !isPinned ? 0.6 : 0.9)}
+            zIndexOffset={isPinned ? 1000 : 0} 
           >
             <Popup>
               <strong>Bus #{busNumber}</strong> 
-              {isStale && <span style={{color: "gray", fontSize: "11px"}}> (Inactive)</span>}
+              {isPinned && <span style={{color: "red", fontWeight: "bold"}}> (WORK ORDER)</span>}
               <br />
               Route: {bus.humanRouteName || "N/A"} <br />
               
