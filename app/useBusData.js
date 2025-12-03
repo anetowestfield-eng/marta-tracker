@@ -6,7 +6,12 @@ const STORAGE_KEY = "marta_bus_cache_v1";
 const GARAGE_LAT = 33.663613; 
 const GARAGE_LON = -84.387490; 
 const REFRESH_RATE = 3000; 
-const MAX_TRAIL_LENGTH = 10; // Keep the last 10 points
+const MAX_TRAIL_LENGTH = 10; 
+
+// AUTOMATIC CLEANUP TIMER
+// 3 Hours = 10800000 ms
+// This keeps "broken" buses on screen for 3 hours, then clears them to make room for the next shift.
+const SHIFT_TIMEOUT = 10800000; 
 
 function getDistanceInMiles(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
@@ -33,7 +38,6 @@ export function useBusData() {
       if (saved) {
         const parsed = JSON.parse(saved);
         parsed.forEach(bus => {
-           // Ensure legacy data has a trail array
            if (!bus.trail) bus.trail = [];
            latestBusesRef.current.set(bus.vehicle.vehicle.id, bus);
         });
@@ -74,6 +78,7 @@ export function useBusData() {
         const incomingBuses = data.entity || [];
         const now = Date.now();
         
+        // Update Master List
         incomingBuses.forEach(bus => {
           const id = bus.vehicle.vehicle.id;
           const routeId = bus.vehicle.trip?.routeId;
@@ -82,19 +87,15 @@ export function useBusData() {
           
           const lat = bus.vehicle.position.latitude;
           const lon = bus.vehicle.position.longitude;
-
           const miles = getDistanceInMiles(GARAGE_LAT, GARAGE_LON, lat, lon);
 
-          // --- BREADCRUMB LOGIC ---
+          // Breadcrumb Logic
           let trail = savedBus?.trail || [];
-          
-          // Check if the bus actually moved from the last point
           const lastPoint = trail.length > 0 ? trail[trail.length - 1] : null;
           const hasMoved = !lastPoint || (lastPoint[0] !== lat || lastPoint[1] !== lon);
 
           if (hasMoved) {
             trail.push([lat, lon]);
-            // Keep only the last X points to save memory
             if (trail.length > MAX_TRAIL_LENGTH) {
                trail = trail.slice(-MAX_TRAIL_LENGTH);
             }
@@ -105,9 +106,18 @@ export function useBusData() {
             humanRouteName: humanRoute,
             lastUpdated: now, 
             distanceToGarage: miles,
-            trail: trail // Save the history
+            trail: trail 
           });
         });
+
+        // --- SMART CLEANUP LOGIC ---
+        // Automatically remove buses that haven't pinged in 3 HOURS.
+        // This solves the "clutter" problem without a manual button.
+        for (const [id, bus] of latestBusesRef.current) {
+          if (now - bus.lastUpdated > SHIFT_TIMEOUT) { 
+            latestBusesRef.current.delete(id);
+          }
+        }
 
         const newList = Array.from(latestBusesRef.current.values());
         setBuses(newList);
@@ -128,7 +138,7 @@ export function useBusData() {
     return [{
       lastUpdated: Date.now(),
       distanceToGarage: 5.2, 
-      trail: [[33.7480, -84.3870], [33.7485, -84.3875], [33.7490, -84.3880]], // Fake trail
+      trail: [],
       vehicle: {
         vehicle: { id: "TEST-BUS", label: "999" },
         position: { latitude: 33.7490, longitude: -84.3880 },
@@ -138,5 +148,6 @@ export function useBusData() {
     }];
   }
 
+  // NOTE: I removed 'clearData' from the return since we are doing it automatically now
   return buses;
 }

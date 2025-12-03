@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.35.6",
     "@vercel/analytics": "^1.6.0",
     "better-sqlite3": "^12.5.0",
     "csv-parser": "^3.2.0",

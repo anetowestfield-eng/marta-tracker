@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* ... existing css ... */
+
+/* Make Leaflet Markers Glide Smoothly */
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  transition: transform 1s linear;
+}
