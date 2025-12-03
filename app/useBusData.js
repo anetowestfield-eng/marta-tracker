@@ -3,13 +3,16 @@ import { useState, useEffect, useRef } from 'react';
 const STORAGE_KEY = "marta_bus_cache_v1";
 
 // --- CONFIGURATION ---
-// UPDATED: Your specific garage coordinates
 const GARAGE_LAT = 33.663613; 
 const GARAGE_LON = -84.387490; 
 
-// Helper: Calculate distance in miles between two coordinates
+// REFRESH RATE: 3000ms = 3 Seconds
+const REFRESH_RATE = 3000; 
+
+// Helper: Calculate distance in miles
 function getDistanceInMiles(lat1, lon1, lat2, lon2) {
-  const R = 3958.8; // Radius of the Earth in miles
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0; // Safety check
+  const R = 3958.8; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a = 
@@ -25,13 +28,24 @@ export function useBusData() {
   const latestBusesRef = useRef(new Map());
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // 1. Load Saved Data
+  // 1. Load Saved Data AND Recalculate Distances
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        
+        // Loop through saved buses and fix missing distances
         parsed.forEach(bus => {
+           // Ensure we recalculate distance based on the NEW garage location
+           if (bus.vehicle?.position) {
+             bus.distanceToGarage = getDistanceInMiles(
+               GARAGE_LAT, 
+               GARAGE_LON, 
+               bus.vehicle.position.latitude, 
+               bus.vehicle.position.longitude
+             );
+           }
            latestBusesRef.current.set(bus.vehicle.vehicle.id, bus);
         });
         setBuses(parsed);
@@ -77,7 +91,6 @@ export function useBusData() {
           const savedBus = latestBusesRef.current.get(id);
           const humanRoute = routeNames[routeId] || savedBus?.humanRouteName || routeId; 
           
-          // CALCULATE DISTANCE TO YOUR GARAGE
           const miles = getDistanceInMiles(
             GARAGE_LAT, 
             GARAGE_LON, 
@@ -88,13 +101,14 @@ export function useBusData() {
           latestBusesRef.current.set(id, {
             ...bus,
             humanRouteName: humanRoute,
-            lastUpdated: now,
-            distanceToGarage: miles // Save the distance!
+            lastUpdated: now, 
+            distanceToGarage: miles 
           });
         });
 
         const newList = Array.from(latestBusesRef.current.values());
         setBuses(newList);
+        
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
 
       } catch (error) {
@@ -103,7 +117,7 @@ export function useBusData() {
     };
 
     fetchBuses();
-    const interval = setInterval(fetchBuses, 10000); 
+    const interval = setInterval(fetchBuses, REFRESH_RATE); 
     return () => clearInterval(interval);
   }, [routeNames]);
 

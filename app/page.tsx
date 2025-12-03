@@ -1,21 +1,21 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
+
+// FIX: Changed "../useBusData" to "./useBusData" (Same folder)
 import { useBusData } from "./useBusData"; 
 
-// FIX 1: Cast the dynamic import as 'any' to loosen strictness
+// FIX: Changed "../Map" to "./Map" (Same folder)
 const MapWithNoSSR = dynamic(() => import("./Map"), { 
   ssr: false,
   loading: () => <p className="p-4">Loading Map...</p>
 }) as any;
 
-export default function Home() {
+export default function TrackerPage() {
   const buses = useBusData();
   const [selectedId, setSelectedId] = useState(null);
   
-  // NEW STATE: List of pinned bus IDs
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-  
   const [sortBy, setSortBy] = useState('distance'); 
   const [sortDirection, setSortDirection] = useState('asc');
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,9 +24,8 @@ export default function Home() {
     setSortDirection(dir => (dir === 'asc' ? 'desc' : 'asc'));
   };
 
-  // Logic to toggle a pin
   const togglePin = (e: any, id: string) => {
-    e.stopPropagation(); // Don't trigger the "select bus" click
+    e.stopPropagation(); 
     setPinnedIds(prev => 
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
@@ -42,30 +41,27 @@ export default function Home() {
         const aPinned = pinnedIds.includes(a.vehicle.vehicle.id);
         const bPinned = pinnedIds.includes(b.vehicle.vehicle.id);
         
-        // If A is pinned and B is not, A comes first
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
 
-        // 1. If both are pinned (or both not), use normal sorting
-        let aVal, bVal;
+        // 1. DETERMINE VALUES TO COMPARE
+        let valA, valB;
         
         if (sortBy === 'busNumber') {
-            aVal = parseInt(a.vehicle.vehicle.label || a.vehicle.vehicle.id);
-            bVal = parseInt(b.vehicle.vehicle.label || b.vehicle.vehicle.id);
+            valA = a.vehicle.vehicle.label || a.vehicle.vehicle.id;
+            valB = b.vehicle.vehicle.label || b.vehicle.vehicle.id;
         } else if (sortBy === 'routeName') {
-            aVal = a.humanRouteName || '';
-            bVal = b.humanRouteName || '';
+            valA = a.humanRouteName || '';
+            valB = b.humanRouteName || '';
         } else if (sortBy === 'distance') {
-            aVal = a.distanceToGarage || 0;
-            bVal = b.distanceToGarage || 0;
+            valA = a.distanceToGarage || 0;
+            valB = b.distanceToGarage || 0;
+            // Distance is just a number, return immediately
+            return sortDirection === 'asc' ? valA - valB : valB - valA;
         }
         
-        let comparison = 0;
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-            comparison = aVal.localeCompare(bVal);
-        } else {
-            comparison = aVal - bVal;
-        }
+        // 2. SMART SORTING (Fixes the "1, 10, 2" problem)
+        const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
 
         return sortDirection === 'asc' ? comparison : -comparison;
     });
@@ -85,13 +81,13 @@ export default function Home() {
     });
   }, [sortedBuses, searchQuery]);
 
-  // Load pins from localStorage on startup (Optional persistence)
+  // Load pins from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("marta_pinned_buses");
     if (saved) setPinnedIds(JSON.parse(saved));
   }, []);
 
-  // Save pins whenever they change
+  // Save pins
   useEffect(() => {
     localStorage.setItem("marta_pinned_buses", JSON.stringify(pinnedIds));
   }, [pinnedIds]);
@@ -102,7 +98,10 @@ export default function Home() {
       <div className="w-full md:w-1/3 h-1/2 md:h-full overflow-y-auto p-4 bg-gray-100 border-r border-gray-300">
         
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
-            <h1 className="text-2xl font-bold">Garage Tracker ({filteredBuses.length})</h1>
+            {/* Dark Blue Title */}
+            <h1 className="text-2xl font-bold text-blue-900">
+              Hamilton Bus Tracker ({filteredBuses.length})
+            </h1>
             
             <input 
                 type="text"
@@ -167,7 +166,6 @@ export default function Home() {
       </div>
 
       <div className="w-full md:w-2/3 h-1/2 md:h-full relative z-0">
-        {/* FIX 2: The Nuclear Option. This comment forces TS to ignore the next line. */}
         {/* @ts-ignore */}
         <MapWithNoSSR buses={buses} selectedId={selectedId} pinnedIds={pinnedIds} />
       </div>

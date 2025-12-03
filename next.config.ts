@@ -1,12 +1,17 @@
 /** @type {import('next').NextConfig} */
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+});
+
 const nextConfig = {
-  // This feature is for development only. 
-  // It hides the black bar warning about suppressHydrationWarning.
+  // THE FIX: Turn off Strict Mode to stop the Map from crashing
+  reactStrictMode: false,
+
+  // Keep your other settings
   devIndicators: {
     suppressDeprecationWarnings: true,
   },
-  
-  // You can add other global configurations here if needed later (like images, headers, etc.)
 };
 
-module.exports = nextConfig;
+module.exports = withPWA(nextConfig);

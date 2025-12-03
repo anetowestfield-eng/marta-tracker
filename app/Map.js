@@ -42,7 +42,6 @@ function MapController({ selectedBus }) {
   return null;
 }
 
-// NOTICE: We added 'pinnedIds = []' to the inputs here
 export default function Map({ buses, selectedId, pinnedIds = [] }) {
   const position = [33.7490, -84.3880];
   const selectedBus = buses.find(b => b.vehicle.vehicle.id === selectedId);
@@ -102,7 +101,7 @@ export default function Map({ buses, selectedId, pinnedIds = [] }) {
 
               <div style={{ marginTop: "10px", borderTop: "1px solid #eee", paddingTop: "8px" }}>
                 <a 
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`}
+                  href={`https://www.google.com/maps/dir/?api=1&destination=$?q=${lat},${lon}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
