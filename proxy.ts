@@ -1,18 +1,18 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Define which routes are protected (The Tracker Dashboard)
+// Define which routes are protected
 const isProtectedRoute = createRouteMatcher(['/tracker(.*)']);
 
-// This is the "export default" the error is asking for!
-export default clerkMiddleware((auth, req) => {
-  // If they try to go to tracker, block them if not logged in
-  if (isProtectedRoute(req)) auth().protect();
+// FIX: Made this 'async' and changed how we call protect()
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtectedRoute(req)) {
+    await auth.protect();
+  }
 });
 
 export const config = {
-  // This matcher tells Next.js which pages to check
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
+    // Skip Next.js internals and all static files
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // Always run for API routes
     '/(api|trpc)(.*)',
