@@ -3,16 +3,19 @@ import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useBusData } from "./useBusData"; 
 
-// FIX: Added "as any" to bypass the TypeScript build error
-const MapWithNoSSR = dynamic(() => import("./Map") as any, { 
+// FIX: We moved "as any" to the end. This forces TypeScript to accept ALL props.
+const MapWithNoSSR = dynamic(() => import("./Map"), { 
   ssr: false,
   loading: () => <p className="p-4">Loading Map...</p>
-});
+}) as any;
 
 export default function Home() {
   const buses = useBusData();
   const [selectedId, setSelectedId] = useState(null);
+  
+  // NEW STATE: List of pinned bus IDs
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  
   const [sortBy, setSortBy] = useState('distance'); 
   const [sortDirection, setSortDirection] = useState('asc');
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,8 +24,9 @@ export default function Home() {
     setSortDirection(dir => (dir === 'asc' ? 'desc' : 'asc'));
   };
 
+  // Logic to toggle a pin
   const togglePin = (e: any, id: string) => {
-    e.stopPropagation(); 
+    e.stopPropagation(); // Don't trigger the "select bus" click
     setPinnedIds(prev => 
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
@@ -30,16 +34,21 @@ export default function Home() {
 
   const sortedBuses = useMemo(() => {
     if (!buses || buses.length === 0) return [];
+    
     const sorted = [...buses]; 
 
     sorted.sort((a: any, b: any) => {
+        // 0. PRIORITY CHECK: Is it Pinned?
         const aPinned = pinnedIds.includes(a.vehicle.vehicle.id);
         const bPinned = pinnedIds.includes(b.vehicle.vehicle.id);
         
+        // If A is pinned and B is not, A comes first
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
 
+        // 1. If both are pinned (or both not), use normal sorting
         let aVal, bVal;
+        
         if (sortBy === 'busNumber') {
             aVal = parseInt(a.vehicle.vehicle.label || a.vehicle.vehicle.id);
             bVal = parseInt(b.vehicle.vehicle.label || b.vehicle.vehicle.id);
@@ -76,14 +85,17 @@ export default function Home() {
     });
   }, [sortedBuses, searchQuery]);
 
+  // Load pins from localStorage on startup (Optional persistence)
   useEffect(() => {
     const saved = localStorage.getItem("marta_pinned_buses");
     if (saved) setPinnedIds(JSON.parse(saved));
   }, []);
 
+  // Save pins whenever they change
   useEffect(() => {
     localStorage.setItem("marta_pinned_buses", JSON.stringify(pinnedIds));
   }, [pinnedIds]);
+
 
   return (
     <main className="h-screen flex flex-col md:flex-row font-sans">
@@ -104,6 +116,7 @@ export default function Home() {
                 <span className="whitespace-nowrap">Sort:</span>
                 <button onClick={() => setSortBy('distance')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'distance' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Dist</button>
                 <button onClick={() => setSortBy('busNumber')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'busNumber' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Bus #</button>
+                <button onClick={() => setSortBy('routeName')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'routeName' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Route</button>
                 <button onClick={toggleSortDirection} className="ml-auto bg-gray-300 px-2 py-1 rounded">
                     {sortDirection === 'asc' ? '▲' : '▼'}
                 </button>
@@ -111,6 +124,7 @@ export default function Home() {
         </div>
 
         {filteredBuses.length === 0 && !searchQuery && <p className="text-gray-500 italic">Waiting for bus data...</p>}
+        {filteredBuses.length === 0 && searchQuery && <p className="text-gray-500 italic">No buses match your search.</p>}
 
         <div className="grid gap-3">
           {filteredBuses.map((item: any) => {
