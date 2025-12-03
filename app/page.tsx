@@ -1,11 +1,9 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-
-// FIX: Changed "../useBusData" to "./useBusData" (Same folder)
 import { useBusData } from "./useBusData"; 
 
-// FIX: Changed "../Map" to "./Map" (Same folder)
+// FIX: We MUST use dynamic import with 'ssr: false' for Leaflet to work
 const MapWithNoSSR = dynamic(() => import("./Map"), { 
   ssr: false,
   loading: () => <p className="p-4">Loading Map...</p>
@@ -19,6 +17,7 @@ export default function TrackerPage() {
   const [sortBy, setSortBy] = useState('distance'); 
   const [sortDirection, setSortDirection] = useState('asc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [hideParked, setHideParked] = useState(false); // Restore the "Hide Parked" state
 
   const toggleSortDirection = () => {
     setSortDirection(dir => (dir === 'asc' ? 'desc' : 'asc'));
@@ -37,16 +36,13 @@ export default function TrackerPage() {
     const sorted = [...buses]; 
 
     sorted.sort((a: any, b: any) => {
-        // 0. PRIORITY CHECK: Is it Pinned?
         const aPinned = pinnedIds.includes(a.vehicle.vehicle.id);
         const bPinned = pinnedIds.includes(b.vehicle.vehicle.id);
         
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
 
-        // 1. DETERMINE VALUES TO COMPARE
         let valA, valB;
-        
         if (sortBy === 'busNumber') {
             valA = a.vehicle.vehicle.label || a.vehicle.vehicle.id;
             valB = b.vehicle.vehicle.label || b.vehicle.vehicle.id;
@@ -56,13 +52,10 @@ export default function TrackerPage() {
         } else if (sortBy === 'distance') {
             valA = a.distanceToGarage || 0;
             valB = b.distanceToGarage || 0;
-            // Distance is just a number, return immediately
             return sortDirection === 'asc' ? valA - valB : valB - valA;
         }
         
-        // 2. SMART SORTING (Fixes the "1, 10, 2" problem)
         const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
-
         return sortDirection === 'asc' ? comparison : -comparison;
     });
 
@@ -70,24 +63,35 @@ export default function TrackerPage() {
   }, [buses, sortBy, sortDirection, pinnedIds]);
 
   const filteredBuses = useMemo(() => {
-    if (!searchQuery) return sortedBuses;
-    const query = searchQuery.toLowerCase();
-    
-    return sortedBuses.filter((item: any) => {
-        const v = item.vehicle;
-        const busNumber = (v.vehicle.label || v.vehicle.id).toLowerCase();
-        const routeName = (item.humanRouteName || '').toLowerCase();
-        return busNumber.includes(query) || routeName.includes(query);
-    });
-  }, [sortedBuses, searchQuery]);
+    let result = sortedBuses;
 
-  // Load pins from localStorage
+    // 1. Hide Parked Filter
+    if (hideParked) {
+        result = result.filter((item: any) => {
+            return !item.distanceToGarage || item.distanceToGarage > 0.3;
+        });
+    }
+
+    // 2. Search Filter
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        result = result.filter((item: any) => {
+            const v = item.vehicle;
+            const busNumber = (v.vehicle.label || v.vehicle.id).toLowerCase();
+            const routeName = (item.humanRouteName || '').toLowerCase();
+            return busNumber.includes(query) || routeName.includes(query);
+        });
+    }
+    
+    return result;
+  }, [sortedBuses, searchQuery, hideParked]);
+
+  // Load/Save Pins
   useEffect(() => {
     const saved = localStorage.getItem("marta_pinned_buses");
     if (saved) setPinnedIds(JSON.parse(saved));
   }, []);
 
-  // Save pins
   useEffect(() => {
     localStorage.setItem("marta_pinned_buses", JSON.stringify(pinnedIds));
   }, [pinnedIds]);
@@ -98,7 +102,6 @@ export default function TrackerPage() {
       <div className="w-full md:w-1/3 h-1/2 md:h-full overflow-y-auto p-4 bg-gray-100 border-r border-gray-300">
         
         <div className="sticky top-0 bg-gray-100 pb-3 z-10 border-b border-gray-300 mb-2">
-            {/* Dark Blue Title */}
             <h1 className="text-2xl font-bold text-blue-900">
               Hamilton Bus Tracker ({filteredBuses.length})
             </h1>
@@ -112,17 +115,33 @@ export default function TrackerPage() {
             />
             
             <div className="flex items-center space-x-2 mt-2 text-sm text-gray-600 overflow-x-auto pb-1">
+                
+                {/* Hide Parked Toggle */}
+                <button
+                    onClick={() => setHideParked(!hideParked)}
+                    className={`px-2 py-1 rounded font-bold transition-colors border whitespace-nowrap ${
+                        hideParked 
+                        ? 'bg-red-600 text-white border-red-700' 
+                        : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                    }`}
+                >
+                    {hideParked ? "Parked Hidden" : "Show All"}
+                </button>
+
+                <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
                 <span className="whitespace-nowrap">Sort:</span>
                 <button onClick={() => setSortBy('distance')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'distance' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Dist</button>
                 <button onClick={() => setSortBy('busNumber')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'busNumber' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Bus #</button>
-                <button onClick={() => setSortBy('routeName')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'routeName' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Route</button>
+                
                 <button onClick={toggleSortDirection} className="ml-auto bg-gray-300 px-2 py-1 rounded">
                     {sortDirection === 'asc' ? '▲' : '▼'}
                 </button>
             </div>
         </div>
 
-        {filteredBuses.length === 0 && !searchQuery && <p className="text-gray-500 italic">Waiting for bus data...</p>}
+        {filteredBuses.length === 0 && !searchQuery && !hideParked && <p className="text-gray-500 italic">Waiting for bus data...</p>}
+        {filteredBuses.length === 0 && hideParked && <p className="text-gray-500 italic">All buses are currently parked at the garage.</p>}
         {filteredBuses.length === 0 && searchQuery && <p className="text-gray-500 italic">No buses match your search.</p>}
 
         <div className="grid gap-3">
@@ -167,7 +186,7 @@ export default function TrackerPage() {
 
       <div className="w-full md:w-2/3 h-1/2 md:h-full relative z-0">
         {/* @ts-ignore */}
-        <MapWithNoSSR buses={buses} selectedId={selectedId} pinnedIds={pinnedIds} />
+        <MapWithNoSSR buses={filteredBuses} selectedId={selectedId} pinnedIds={pinnedIds} />
       </div>
     </main>
   );

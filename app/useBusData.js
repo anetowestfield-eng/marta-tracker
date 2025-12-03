@@ -5,13 +5,11 @@ const STORAGE_KEY = "marta_bus_cache_v1";
 // --- CONFIGURATION ---
 const GARAGE_LAT = 33.663613; 
 const GARAGE_LON = -84.387490; 
-
-// REFRESH RATE: 3000ms = 3 Seconds
 const REFRESH_RATE = 3000; 
+const MAX_TRAIL_LENGTH = 10; // Keep the last 10 points
 
-// Helper: Calculate distance in miles
 function getDistanceInMiles(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 0; // Safety check
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
   const R = 3958.8; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -28,24 +26,15 @@ export function useBusData() {
   const latestBusesRef = useRef(new Map());
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // 1. Load Saved Data AND Recalculate Distances
+  // 1. Load Saved Data
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        
-        // Loop through saved buses and fix missing distances
         parsed.forEach(bus => {
-           // Ensure we recalculate distance based on the NEW garage location
-           if (bus.vehicle?.position) {
-             bus.distanceToGarage = getDistanceInMiles(
-               GARAGE_LAT, 
-               GARAGE_LON, 
-               bus.vehicle.position.latitude, 
-               bus.vehicle.position.longitude
-             );
-           }
+           // Ensure legacy data has a trail array
+           if (!bus.trail) bus.trail = [];
            latestBusesRef.current.set(bus.vehicle.vehicle.id, bus);
         });
         setBuses(parsed);
@@ -91,24 +80,37 @@ export function useBusData() {
           const savedBus = latestBusesRef.current.get(id);
           const humanRoute = routeNames[routeId] || savedBus?.humanRouteName || routeId; 
           
-          const miles = getDistanceInMiles(
-            GARAGE_LAT, 
-            GARAGE_LON, 
-            bus.vehicle.position.latitude, 
-            bus.vehicle.position.longitude
-          );
+          const lat = bus.vehicle.position.latitude;
+          const lon = bus.vehicle.position.longitude;
+
+          const miles = getDistanceInMiles(GARAGE_LAT, GARAGE_LON, lat, lon);
+
+          // --- BREADCRUMB LOGIC ---
+          let trail = savedBus?.trail || [];
+          
+          // Check if the bus actually moved from the last point
+          const lastPoint = trail.length > 0 ? trail[trail.length - 1] : null;
+          const hasMoved = !lastPoint || (lastPoint[0] !== lat || lastPoint[1] !== lon);
+
+          if (hasMoved) {
+            trail.push([lat, lon]);
+            // Keep only the last X points to save memory
+            if (trail.length > MAX_TRAIL_LENGTH) {
+               trail = trail.slice(-MAX_TRAIL_LENGTH);
+            }
+          }
 
           latestBusesRef.current.set(id, {
             ...bus,
             humanRouteName: humanRoute,
             lastUpdated: now, 
-            distanceToGarage: miles 
+            distanceToGarage: miles,
+            trail: trail // Save the history
           });
         });
 
         const newList = Array.from(latestBusesRef.current.values());
         setBuses(newList);
-        
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
 
       } catch (error) {
@@ -126,6 +128,7 @@ export function useBusData() {
     return [{
       lastUpdated: Date.now(),
       distanceToGarage: 5.2, 
+      trail: [[33.7480, -84.3870], [33.7485, -84.3875], [33.7490, -84.3880]], // Fake trail
       vehicle: {
         vehicle: { id: "TEST-BUS", label: "999" },
         position: { latitude: 33.7490, longitude: -84.3880 },

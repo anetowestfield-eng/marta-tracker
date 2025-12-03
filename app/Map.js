@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+// Import Polyline to draw the breadcrumbs
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -68,59 +69,76 @@ export default function Map({ buses, selectedId, pinnedIds = [] }) {
         const lat = bus.vehicle.position.latitude;
         const lon = bus.vehicle.position.longitude;
         const miles = bus.distanceToGarage ? bus.distanceToGarage.toFixed(1) : "?";
+        
+        // Use the trail if it exists, otherwise just the current point
+        const trail = bus.trail && bus.trail.length > 0 ? bus.trail : [[lat, lon]];
 
         const ONE_HOUR = 60 * 60 * 1000;
         const isStale = (Date.now() - bus.lastUpdated) > ONE_HOUR;
         const timeString = new Date(bus.lastUpdated).toLocaleTimeString();
 
         let currentIcon = blueIcon;
-        if (isPinned) currentIcon = redIcon;
-        else if (isStale) currentIcon = greyIcon;
+        let trailColor = "#3388ff"; // Default Blue Line
+
+        if (isPinned) {
+            currentIcon = redIcon;
+            trailColor = "red"; // Red Line for Pinned
+        } else if (isStale) {
+            currentIcon = greyIcon;
+            trailColor = "grey";
+        }
 
         return (
-          <Marker 
-            key={id} 
-            position={[lat, lon]}
-            icon={currentIcon}
-            opacity={isSelected ? 1.0 : (isStale && !isPinned ? 0.6 : 0.9)}
-            zIndexOffset={isPinned ? 1000 : 0} 
-          >
-            <Popup>
-              <strong>Bus #{busNumber}</strong> 
-              {isPinned && <span style={{color: "red", fontWeight: "bold"}}> (WORK ORDER)</span>}
-              <br />
-              Route: {bus.humanRouteName || "N/A"} <br />
-              
-              <div style={{fontWeight: "bold", color: "#d9534f", margin: "4px 0"}}>
-                 {miles} miles from garage
-              </div>
-              
-              <span style={{ fontSize: "12px", color: isStale ? "red" : "#666" }}>
-                Last seen: {timeString}
-              </span>
+          <div key={id}>
+            {/* Draw the Breadcrumb Trail */}
+            <Polyline 
+                positions={trail} 
+                pathOptions={{ color: trailColor, weight: 3, opacity: 0.6, dashArray: '5, 10' }} 
+            />
 
-              <div style={{ marginTop: "10px", borderTop: "1px solid #eee", paddingTop: "8px" }}>
-                <a 
-                  href={`https://www.google.com/maps/dir/?api=1&destination=$?q=${lat},${lon}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "block",
-                    backgroundColor: "#4285F4",
-                    color: "white",
-                    textAlign: "center",
-                    padding: "6px 10px",
-                    borderRadius: "4px",
-                    textDecoration: "none",
-                    fontSize: "13px",
-                    fontWeight: "bold"
-                  }}
-                >
-                  🚗 Navigate to Bus
-                </a>
-              </div>
-            </Popup>
-          </Marker>
+            <Marker 
+                position={[lat, lon]}
+                icon={currentIcon}
+                opacity={isSelected ? 1.0 : (isStale && !isPinned ? 0.6 : 0.9)}
+                zIndexOffset={isPinned ? 1000 : 0} 
+            >
+                <Popup>
+                <strong>Bus #{busNumber}</strong> 
+                {isPinned && <span style={{color: "red", fontWeight: "bold"}}> (WORK ORDER)</span>}
+                <br />
+                Route: {bus.humanRouteName || "N/A"} <br />
+                
+                <div style={{fontWeight: "bold", color: "#d9534f", margin: "4px 0"}}>
+                    {miles} miles from garage
+                </div>
+                
+                <span style={{ fontSize: "12px", color: isStale ? "red" : "#666" }}>
+                    Last seen: {timeString}
+                </span>
+
+                <div style={{ marginTop: "10px", borderTop: "1px solid #eee", paddingTop: "8px" }}>
+                    <a 
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        display: "block",
+                        backgroundColor: "#4285F4",
+                        color: "white",
+                        textAlign: "center",
+                        padding: "6px 10px",
+                        borderRadius: "4px",
+                        textDecoration: "none",
+                        fontSize: "13px",
+                        fontWeight: "bold"
+                    }}
+                    >
+                    🚗 Navigate to Bus
+                    </a>
+                </div>
+                </Popup>
+            </Marker>
+          </div>
         );
       })}
     </MapContainer>
