@@ -23,7 +23,6 @@ export default function TrackerPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [hideParked, setHideParked] = useState(false); 
 
-  // --- SECURITY CHECK ---
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push("/");
@@ -117,16 +116,15 @@ export default function TrackerPage() {
                 <h1 className="text-2xl font-bold text-blue-900">
                   Hamilton Tracker ({filteredBuses.length})
                 </h1>
-                
-                {/* No extra button needed here, it's in the header now */}
             </div>
             
+            {/* --- FIX: Added 'text-gray-900' and 'bg-white' --- */}
             <input 
                 type="text"
                 placeholder="Search Bus # or Route..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full mt-2 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                className="w-full mt-2 p-2 border border-gray-300 rounded text-gray-900 bg-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
             
             <div className="flex items-center space-x-2 mt-2 text-sm text-gray-600 overflow-x-auto pb-1">
