@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-// Import Polyline to draw the breadcrumbs
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -47,6 +46,7 @@ export default function Map({ buses, selectedId, pinnedIds = [] }) {
   const position = [33.7490, -84.3880];
   const selectedBus = buses.find(b => b.vehicle.vehicle.id === selectedId);
   
+  // Force map to re-render every minute so the colors update
   const [, setTick] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setTick(t => t + 1), 60000);
@@ -70,27 +70,27 @@ export default function Map({ buses, selectedId, pinnedIds = [] }) {
         const lon = bus.vehicle.position.longitude;
         const miles = bus.distanceToGarage ? bus.distanceToGarage.toFixed(1) : "?";
         
-        // Use the trail if it exists, otherwise just the current point
         const trail = bus.trail && bus.trail.length > 0 ? bus.trail : [[lat, lon]];
 
-        const ONE_HOUR = 60 * 60 * 1000;
-        const isStale = (Date.now() - bus.lastUpdated) > ONE_HOUR;
-        const timeString = new Date(bus.lastUpdated).toLocaleTimeString();
+        // --- GHOST LOGIC ---
+        // 5 Minutes = 300,000 milliseconds
+        // If no signal for 5 mins, turn it GRAY.
+        const isStale = (Date.now() - bus.lastUpdated) > 300000;
+        const timeString = new Date(bus.lastUpdated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
         let currentIcon = blueIcon;
-        let trailColor = "#3388ff"; // Default Blue Line
+        let trailColor = "#3388ff"; 
 
         if (isPinned) {
             currentIcon = redIcon;
-            trailColor = "red"; // Red Line for Pinned
+            trailColor = "red"; 
         } else if (isStale) {
-            currentIcon = greyIcon;
+            currentIcon = greyIcon; // Turns Gray immediately
             trailColor = "grey";
         }
 
         return (
           <div key={id}>
-            {/* Draw the Breadcrumb Trail */}
             <Polyline 
                 positions={trail} 
                 pathOptions={{ color: trailColor, weight: 3, opacity: 0.6, dashArray: '5, 10' }} 
@@ -112,9 +112,16 @@ export default function Map({ buses, selectedId, pinnedIds = [] }) {
                     {miles} miles from garage
                 </div>
                 
-                <span style={{ fontSize: "12px", color: isStale ? "red" : "#666" }}>
-                    Last seen: {timeString}
-                </span>
+                {/* Visual Status Label in Popup */}
+                {isStale ? (
+                   <span style={{ fontSize: "12px", color: "gray", fontWeight: "bold" }}>
+                     👻 GHOST (Offline {timeString})
+                   </span>
+                ) : (
+                   <span style={{ fontSize: "12px", color: "green", fontWeight: "bold" }}>
+                     🟢 LIVE ({timeString})
+                   </span>
+                )}
 
                 <div style={{ marginTop: "10px", borderTop: "1px solid #eee", paddingTop: "8px" }}>
                     <a 

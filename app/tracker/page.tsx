@@ -5,7 +5,6 @@ import { UserButton, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useBusData } from "../useBusData"; 
 
-// FIX: Cast dynamic import as 'any' to avoid TS errors
 const MapWithNoSSR = dynamic(() => import("../Map"), { 
   ssr: false,
   loading: () => <p className="p-4">Loading Map...</p>
@@ -14,14 +13,24 @@ const MapWithNoSSR = dynamic(() => import("../Map"), {
 export default function TrackerPage() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const buses = useBusData();
+  
+  const { buses, clearData } = useBusData();
   
   const [selectedId, setSelectedId] = useState(null);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('distance'); 
   const [sortDirection, setSortDirection] = useState('asc');
   const [searchQuery, setSearchQuery] = useState('');
-  const [hideParked, setHideParked] = useState(false); 
+  
+  // --- THIS IS THE NEW VIEW MODE STATE ---
+  const [viewMode, setViewMode] = useState('all'); // Options: 'all', 'road', 'garage'
+
+  // Force re-render for ghost timer
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -38,6 +47,13 @@ export default function TrackerPage() {
     setPinnedIds(prev => 
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
+  };
+
+  // --- CYCLING LOGIC ---
+  const cycleViewMode = () => {
+    if (viewMode === 'all') setViewMode('road');
+    else if (viewMode === 'road') setViewMode('garage');
+    else setViewMode('all');
   };
 
   const sortedBuses = useMemo(() => {
@@ -75,10 +91,13 @@ export default function TrackerPage() {
   const filteredBuses = useMemo(() => {
     let result = sortedBuses;
 
-    if (hideParked) {
-        result = result.filter((item: any) => {
-            return !item.distanceToGarage || item.distanceToGarage > 0.3;
-        });
+    // --- FILTER LOGIC ---
+    if (viewMode === 'road') {
+        // HIDE GARAGE (Show only > 0.3 miles away)
+        result = result.filter((item: any) => !item.distanceToGarage || item.distanceToGarage > 0.3);
+    } else if (viewMode === 'garage') {
+        // SHOW ONLY GARAGE (Show only <= 0.3 miles away)
+        result = result.filter((item: any) => item.distanceToGarage && item.distanceToGarage <= 0.3);
     }
 
     if (searchQuery) {
@@ -92,7 +111,7 @@ export default function TrackerPage() {
     }
     
     return result;
-  }, [sortedBuses, searchQuery, hideParked]);
+  }, [sortedBuses, searchQuery, viewMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem("marta_pinned_buses");
@@ -116,9 +135,17 @@ export default function TrackerPage() {
                 <h1 className="text-2xl font-bold text-blue-900">
                   Hamilton Tracker ({filteredBuses.length})
                 </h1>
+                
+                <div className="flex gap-2">
+                    <button 
+                        onClick={clearData}
+                        className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full hover:bg-red-200 border border-red-200 font-bold"
+                    >
+                        Reset Map
+                    </button>
+                </div>
             </div>
             
-            {/* --- FIX: Added 'text-gray-900' and 'bg-white' --- */}
             <input 
                 type="text"
                 placeholder="Search Bus # or Route..."
@@ -128,22 +155,26 @@ export default function TrackerPage() {
             />
             
             <div className="flex items-center space-x-2 mt-2 text-sm text-gray-600 overflow-x-auto pb-1">
+                
+                {/* --- 3-WAY BUTTON --- */}
                 <button
-                    onClick={() => setHideParked(!hideParked)}
-                    className={`px-2 py-1 rounded font-bold transition-colors border whitespace-nowrap ${
-                        hideParked 
-                        ? 'bg-red-600 text-white border-red-700' 
-                        : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                    onClick={cycleViewMode}
+                    className={`px-3 py-1 rounded font-bold transition-colors border whitespace-nowrap shadow-sm ${
+                        viewMode === 'all' ? 'bg-white text-gray-700 hover:bg-gray-100' :
+                        viewMode === 'road' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                        'bg-purple-100 text-purple-800 border-purple-300'
                     }`}
                 >
-                    {hideParked ? "Parked Hidden" : "Show All"}
+                    {viewMode === 'all' ? "View: ALL" : 
+                     viewMode === 'road' ? "View: ROAD" : 
+                     "View: GARAGE"}
                 </button>
 
                 <div className="h-4 w-px bg-gray-300 mx-1"></div>
 
-                <span className="whitespace-nowrap">Sort:</span>
                 <button onClick={() => setSortBy('distance')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'distance' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Dist</button>
                 <button onClick={() => setSortBy('busNumber')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'busNumber' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Bus #</button>
+                <button onClick={() => setSortBy('routeName')} className={`px-2 py-1 rounded whitespace-nowrap ${sortBy === 'routeName' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-200'}`}>Route</button>
                 
                 <button onClick={toggleSortDirection} className="ml-auto bg-gray-300 px-2 py-1 rounded">
                     {sortDirection === 'asc' ? '▲' : '▼'}
@@ -151,7 +182,14 @@ export default function TrackerPage() {
             </div>
         </div>
 
-        {filteredBuses.length === 0 && !searchQuery && !hideParked && <p className="text-gray-500 italic">Waiting for bus data...</p>}
+        {/* --- STATUS MESSAGE --- */}
+        {filteredBuses.length === 0 && (
+             <div className="text-center p-8 text-gray-500">
+                {viewMode === 'garage' 
+                    ? "No buses detected in the garage." 
+                    : "No buses found matching your search."}
+             </div>
+        )}
         
         <div className="grid gap-3">
           {filteredBuses.map((item: any) => {
@@ -162,12 +200,18 @@ export default function TrackerPage() {
             const isPinned = pinnedIds.includes(id);
             const miles = item.distanceToGarage ? item.distanceToGarage.toFixed(1) : "?";
 
+            // GHOST CHECK (5 mins)
+            const isStale = (Date.now() - item.lastUpdated) > 300000;
+            // GARAGE CHECK (0.3 miles)
+            const isParked = item.distanceToGarage && item.distanceToGarage <= 0.3;
+
             return (
               <div 
                 key={id} 
                 onClick={() => setSelectedId(id)}
                 className={`p-3 rounded shadow cursor-pointer transition-all border-2 relative ${
-                  isSelected ? "bg-blue-100 border-blue-500 scale-[1.02]" : "bg-white border-transparent hover:bg-gray-50"
+                  isSelected ? "bg-blue-100 border-blue-500 scale-[1.02]" : 
+                  (isStale ? "bg-gray-50 border-gray-200" : "bg-white border-transparent hover:bg-gray-50")
                 } ${isPinned ? "border-l-8 border-l-red-500" : ""}`}
               >
                 <button 
@@ -180,11 +224,28 @@ export default function TrackerPage() {
 
                 <div className="flex justify-between items-start pr-8">
                     <div>
-                        <div className="font-bold text-lg text-blue-600">Bus #{busNumber}</div>
+                        <div className={`font-bold text-lg ${isStale ? "text-gray-500" : "text-blue-600"}`}>
+                            {isStale ? "👻 " : ""} Bus #{busNumber}
+                        </div>
                         <div className="text-sm text-gray-800">Route: {item.humanRouteName || "N/A"}</div>
+                        
+                        {/* GARAGE BADGE */}
+                        {isParked && (
+                            <div className="mt-1 inline-block bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded border border-purple-200 font-bold">
+                                🏠 AT GARAGE
+                            </div>
+                        )}
                     </div>
-                    <div className="bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                        {miles} mi
+                    
+                    <div className="flex flex-col items-end gap-1">
+                        <div className="bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                            {miles} mi
+                        </div>
+                        {isStale && (
+                            <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">
+                                Offline
+                            </span>
+                        )}
                     </div>
                 </div>
               </div>
